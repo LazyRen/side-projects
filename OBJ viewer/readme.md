@@ -27,9 +27,13 @@ If the action does not match any of them above, function will starts to parse in
 
 
 
-![ScreenShot1](./assets/Screen Shot 2018-07-30 at 3.09.03 PM.png)
+## ScreenShots
 
-![ScreenShot2](./assets/Screen Shot 2018-06-11 at 4.17.55 PM.png)
+![ScreenShot1](./assets/ScreenShot-01.png)
 
-![ScreenShot3](./assets/Screen Shot 2018-06-11 at 4.17.34 PM.png)
+![ScreenShot2](./assets/ScreenShot-02.png)
+
+![ScreenShot3](./assets/ScreenShot-03.png)
+
+![ScreenShot4](./assets/ScreenShot-04.png)
 
