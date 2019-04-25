@@ -33,8 +33,6 @@
 
 #define SIZE_T_SIZE (ALIGN(sizeof(size_t)))
 
-#define SIZE_PTR(p)  ((size_t*)(((char*)(p)) - SIZE_T_SIZE))
-
 #define MAX(x, y) ((x) > (y) ? (x) : (y))
 
 // Pack a size and allocated bit into a word
@@ -162,7 +160,7 @@ void *mm_realloc(void *oldptr, size_t size)
 	}
 
 	/* Copy the old data. */
-	oldsize = *SIZE_PTR(oldptr);
+	oldsize = GET_SIZE(HDRP(oldptr));
 	if (size < oldsize)
 		oldsize = size;
 	memcpy(newptr, oldptr, oldsize);
