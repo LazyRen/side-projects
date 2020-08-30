@@ -2,11 +2,14 @@ import random
 import pygame
 from copy import deepcopy
 
-# 10 x 20 square grid
-# shapes: S, Z, I, O, J, L, T
-# represented in order by 0 - 6
+# original source code from "https://www.freecodecamp.org/news/tetris-python-tutorial-pygame/"
+# Modified by DaeIn Lee
 
-pygame.font.init()
+# Tetris Guideline
+# http://brokenspine.org/Gaming/2009%20Tetris%20Design%20Guideline.pdf
+# http://brokenspine.org/Gaming/2009%20Tetris%20Marketing%20Guideline.pdf
+# https://tetris.fandom.com/wiki/Tetris_Guideline
+# https://tetris.wiki/Tetris_Guideline
 
 # GLOBALS VARS
 FALL_SPEED      = 25
@@ -22,7 +25,30 @@ PLAY_HEIGHT     = GRID_HEIGHT * BLOCK_SIZE
 TOP_LEFT_X      = (WINDOW_WIDTH - PLAY_WIDTH) // 2
 TOP_LEFT_Y      = WINDOW_HEIGHT - PLAY_HEIGHT
 
-# SHAPE FORMATS
+# RGB COLORS
+BLACK   = (0,   0,   0  )
+BLUE    = (0,   0,   255)
+CYAN    = (0,   255, 255)
+GRAY    = (128, 128, 128)
+GREEN   = (0,   128, 0  )
+LIME    = (0,   255, 0  )
+MAGENTA = (255, 0,   255)
+ORANGE  = (255, 165, 0  )
+PURPLE  = (128, 0,   128)
+RED     = (255, 0,   0  )
+WHITE   = (255, 255, 255)
+YELLOW  = (255, 255, 0  )
+
+# TETRIMINO COLORS
+COLOR_I = (0,   159, 218)
+COLOR_J = (0,   101, 189)
+COLOR_L = (255, 121, 0  )
+COLOR_O = (254, 203, 0  )
+COLOR_S = (105, 190, 40 )
+COLOR_Z = (237, 41,  57 )
+COLOR_T = (149, 45,  152)
+
+# TETRIMINO FORMATS
 # https://harddrop.com/wiki/File:SRS-true-rotations.png
 # SHAPE_I, SHAPE_J, SHAPE_L, SHAPE_O, SHAPE_S, SHAPE_Z, SHAPE_T
 SHAPE_I = [['..0..',
@@ -131,7 +157,7 @@ SHAPE_T = [['.....',
             '.....']]
 
 shapes = [SHAPE_I, SHAPE_J, SHAPE_L, SHAPE_O, SHAPE_S, SHAPE_Z, SHAPE_T]
-shape_colors = [(0, 255, 0), (255, 0, 0), (0, 255, 255), (255, 255, 0), (255, 165, 0), (0, 0, 255), (128, 0, 128)]
+shape_colors = [COLOR_I, COLOR_J, COLOR_L, COLOR_O, COLOR_S, COLOR_Z, COLOR_T]
 # index 0 - 6 represent shape
 
 
@@ -371,6 +397,7 @@ def main_menu():
 
 
 if __name__ == '__main__':
+    pygame.font.init()
     win = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT))
     pygame.display.set_caption('Tetris')
     pygame.key.set_repeat(FALL_SPEED * 4, FALL_SPEED * 2)
