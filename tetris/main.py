@@ -1,6 +1,6 @@
+from copy import deepcopy
 import random
 import pygame
-from copy import deepcopy
 
 # original source code from "https://www.freecodecamp.org/news/tetris-python-tutorial-pygame/"
 # Modified by DaeIn Lee
@@ -11,12 +11,16 @@ from copy import deepcopy
 # https://tetris.fandom.com/wiki/Tetris_Guideline
 # https://tetris.wiki/Tetris_Guideline
 
-# GLOBALS VARS
-FALL_SPEED      = 25
+# GAME SETTING
+FALL_SPEED      = 250
+REPEAT_INTERVAL = 50
+
+# DISPLAY
 WINDOW_WIDTH    = 800
 WINDOW_HEIGHT   = 700
 GRID_WIDTH      = 10
 GRID_HEIGHT     = 20
+GRID_BUFFER     = 2
 SHAPE_SIZE      = 4
 BLOCK_SIZE      = 30
 PLAY_WIDTH      = GRID_WIDTH  * BLOCK_SIZE
@@ -24,6 +28,8 @@ PLAY_HEIGHT     = GRID_HEIGHT * BLOCK_SIZE
 
 TOP_LEFT_X      = (WINDOW_WIDTH - PLAY_WIDTH) // 2
 TOP_LEFT_Y      = WINDOW_HEIGHT - PLAY_HEIGHT
+
+# OPTIONS
 
 # RGB COLORS
 BLACK   = (0,   0,   0  )
@@ -163,8 +169,8 @@ shape_colors = [COLOR_I, COLOR_J, COLOR_L, COLOR_O, COLOR_S, COLOR_Z, COLOR_T]
 
 class Piece():
     def __init__(self, column, row, shape):
-        self.x = column
-        self.y = row
+        self.col = column
+        self.row = row
         self.shape = shape
         self.color = shape_colors[shapes.index(shape)]
         self.rotation = 0  # number from 0-3
@@ -187,7 +193,7 @@ def convert_shape_format(shape):
         row = list(line)
         for c, column in enumerate(row):
             if column == '0':
-                positions.append((shape.x + c, shape.y + r))
+                positions.append((shape.col + c, shape.row + r))
 
     for r, pos in enumerate(positions):
         positions[r] = (pos[0] - 2, pos[1] - 4)
@@ -237,7 +243,7 @@ def draw_text_middle(text, size, color, surface):
     font = pygame.font.SysFont('comicsans', size, bold=True)
     label = font.render(text, 1, color)
 
-    surface.blit(label, (TOP_LEFT_X + PLAY_WIDTH  // 2  - label.get_width()  // 2,
+    surface.blit(label, (TOP_LEFT_X + PLAY_WIDTH  // 2 - label.get_width()  // 2,
                          TOP_LEFT_Y + PLAY_HEIGHT // 2 - label.get_height() // 2))
 
 
@@ -273,7 +279,7 @@ def clear_rows(grid, locked):
 
 def draw_next_shape(shape, surface):
     font = pygame.font.SysFont('comicsans', BLOCK_SIZE)
-    label = font.render('Next Shape', 1, (255, 255, 255))
+    label = font.render('Next Shape', 1, WHITE)
 
     start_x = TOP_LEFT_X + PLAY_WIDTH + 50
     start_y = TOP_LEFT_Y + PLAY_HEIGHT // 2 - 100
@@ -288,10 +294,10 @@ def draw_next_shape(shape, surface):
 
 
 def draw_window(surface, grid):
-    surface.fill((0, 0, 0))
+    surface.fill(BLACK)
     # Tetris Title
     font = pygame.font.SysFont('comicsans', 60)
-    label = font.render('TETRIS', 1, (255, 255, 255))
+    label = font.render('TETRIS', 1, WHITE)
 
     surface.blit(label, (TOP_LEFT_X + PLAY_WIDTH // 2 - (label.get_width() // 2), BLOCK_SIZE))
 
@@ -301,76 +307,87 @@ def draw_window(surface, grid):
 
     # draw grid and border
     draw_grid(surface, GRID_HEIGHT, GRID_WIDTH)
-    pygame.draw.rect(surface, (255, 0, 0), (TOP_LEFT_X, TOP_LEFT_Y, PLAY_WIDTH, PLAY_HEIGHT), 5)
+    pygame.draw.rect(surface, RED, (TOP_LEFT_X, TOP_LEFT_Y, PLAY_WIDTH, PLAY_HEIGHT), 5)
     # pygame.display.update()
 
 
 def get_keyboard_input(current_piece, grid):
+    prev_piece = deepcopy(current_piece)
+
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             pygame.display.quit()
             pygame.quit()
-
         if event.type == pygame.KEYDOWN:
-            prev_piece = deepcopy(current_piece)
-            if event.key == pygame.K_LEFT:
-                current_piece.x -= 1
-            elif event.key == pygame.K_RIGHT:
-                current_piece.x += 1
-            elif event.key == pygame.K_UP:     # rotate shape
+            if event.key == pygame.K_UP:     # rotate shape
                 current_piece.rotation = current_piece.rotation + 1 % len(current_piece.shape)
             elif event.key == pygame.K_DOWN:   # move shape one block down
-                current_piece.y += 1
-            elif event.key == pygame.K_SPACE:  # move shape to bottom
+                current_piece.row += 1
+            elif event.key == pygame.K_SPACE:  # Hard Drop(move shape to bottom)
                 while valid_space(current_piece, grid):
-                    current_piece.y += 1
-                current_piece.y -= 1
+                    current_piece.row += 1
+                current_piece.row -= 1
 
-            if not valid_space(current_piece, grid):
-                current_piece = prev_piece
+    # Auto Repeat only works for left / right arrow key
+    pygame.event.pump()
+    key_states = pygame.key.get_pressed()
+    if key_states[pygame.K_LEFT] and (not get_keyboard_input.repeat_enabled or get_keyboard_input.interval >= REPEAT_INTERVAL):
+        get_keyboard_input.repeat_enabled = True
+        get_keyboard_input.interval = 0
+        current_piece.col -= 1
+    if key_states[pygame.K_RIGHT] and (not get_keyboard_input.repeat_enabled or get_keyboard_input.interval >= REPEAT_INTERVAL):
+        get_keyboard_input.repeat_enabled = True
+        get_keyboard_input.interval = 0
+        current_piece.col += 1
+    if not key_states[pygame.K_LEFT] and not key_states[pygame.K_RIGHT]:
+        get_keyboard_input.repeat_enabled = False
 
+    if not valid_space(current_piece, grid):
+        return prev_piece
     return current_piece
 
 
 def main():
-    # global grid
     locked_positions = {}  # (x,y):(255,0,0)
-    grid = create_grid(locked_positions)
+    grid             = create_grid(locked_positions)
+    lock_down        = False
+    current_piece    = get_shape()
+    next_piece       = get_shape()
+    clock            = pygame.time.Clock()
+    fall_time        = 0
 
-    change_piece = False
-    current_piece = get_shape()
-    next_piece = get_shape()
-    clock = pygame.time.Clock()
-    fall_time = 0
+    get_keyboard_input.repeat_enabled = False
+    get_keyboard_input.interval       = 0
 
     while True:
         grid = create_grid(locked_positions)
-        fall_time += clock.get_rawtime()
+        raw_time = clock.get_rawtime()
+        fall_time += raw_time
+        get_keyboard_input.interval += raw_time
         clock.tick()
         # PIECE FALLING CODE
-        if fall_time/10 >= FALL_SPEED:
+        if fall_time >= FALL_SPEED:
             fall_time = 0
-            current_piece.y += 1
-            if check_ground_hit(current_piece, grid) and current_piece.y > 0:
-                current_piece.y -= 1
-                change_piece = True
+            current_piece.row += 1
+            if check_ground_hit(current_piece, grid) and current_piece.row > 0:
+                current_piece.row -= 1
+                lock_down = True
 
         current_piece = get_keyboard_input(current_piece, grid)
-
         shape_pos = convert_shape_format(current_piece)
 
-        # add piece to the grid for drawing
+        # Add piece to the grid for drawing
         for x, y in shape_pos:
             if -1 < y < GRID_HEIGHT and -1 < x < GRID_WIDTH:
                 grid[y][x] = current_piece.color
 
-        # IF PIECE HIT GROUND
-        if change_piece:
+        # Piece drops onto a surface
+        if lock_down:
             for pos in shape_pos:
                 locked_positions[pos] = current_piece.color
             current_piece = next_piece
             next_piece = get_shape()
-            change_piece = False
+            lock_down = False
             clear_rows(grid, locked_positions)
             if check_lost(locked_positions):
                 break
@@ -379,15 +396,23 @@ def main():
         draw_next_shape(next_piece, win)
         pygame.display.update()
 
-    draw_text_middle("You Lost", 40, (255, 255, 255), win)
-    pygame.display.update()
-    pygame.time.delay(2000)
+    while True:
+        draw_text_middle("You Lost", 40, WHITE, win)
+        pygame.display.update()
+        key_pushed = False
+        for event in pygame.event.get():
+            if event.type == pygame.KEYDOWN:
+                key_pushed = True
+            elif event.type == pygame.QUIT:
+                pygame.quit()
+        if key_pushed:
+            break
 
 
 def main_menu():
     while True:
-        win.fill((0, 0, 0))
-        draw_text_middle('Press any key to begin.', 60, (255, 255, 255), win)
+        win.fill(BLACK)
+        draw_text_middle('Press any key to begin.', 60, WHITE, win)
         pygame.display.update()
         for event in pygame.event.get():
             if event.type == pygame.KEYDOWN:
@@ -400,5 +425,4 @@ if __name__ == '__main__':
     pygame.font.init()
     win = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT))
     pygame.display.set_caption('Tetris')
-    pygame.key.set_repeat(FALL_SPEED * 4, FALL_SPEED * 2)
     main_menu()  # start game
