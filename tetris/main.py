@@ -21,7 +21,7 @@ WINDOW_HEIGHT   = 700
 GRID_WIDTH      = 10
 GRID_HEIGHT     = 20
 GRID_BUFFER     = 2
-SHAPE_SIZE      = 4
+TETROMINO_SIZE  = 4
 BLOCK_SIZE      = 30
 PLAY_WIDTH      = GRID_WIDTH  * BLOCK_SIZE
 PLAY_HEIGHT     = GRID_HEIGHT * BLOCK_SIZE
@@ -46,13 +46,13 @@ WHITE   = (255, 255, 255)
 YELLOW  = (255, 255, 0  )
 
 # TETRIMINO COLORS
-COLOR_I = (0,   159, 218)
-COLOR_J = (0,   101, 189)
-COLOR_L = (255, 121, 0  )
-COLOR_O = (254, 203, 0  )
-COLOR_S = (105, 190, 40 )
-COLOR_Z = (237, 41,  57 )
-COLOR_T = (149, 45,  152)
+COLOR_I = (0,   159, 218) # light blue
+COLOR_J = (0,   101, 189) # dark blue
+COLOR_L = (255, 121, 0  ) # orange
+COLOR_O = (254, 203, 0  ) # yellow
+COLOR_S = (105, 190, 40 ) # green
+COLOR_Z = (237, 41,  57 ) # red
+COLOR_T = (149, 45,  152) # magenta
 
 # TETRIMINO FORMATS
 # https://harddrop.com/wiki/File:SRS-true-rotations.png
@@ -162,8 +162,8 @@ SHAPE_T = [['.....',
             '..0..',
             '.....']]
 
-shapes = [SHAPE_I, SHAPE_J, SHAPE_L, SHAPE_O, SHAPE_S, SHAPE_Z, SHAPE_T]
-shape_colors = [COLOR_I, COLOR_J, COLOR_L, COLOR_O, COLOR_S, COLOR_Z, COLOR_T]
+tetrominos       = [SHAPE_I, SHAPE_J, SHAPE_L, SHAPE_O, SHAPE_S, SHAPE_Z, SHAPE_T]
+tetromino_colors = [COLOR_I, COLOR_J, COLOR_L, COLOR_O, COLOR_S, COLOR_Z, COLOR_T]
 # index 0 - 6 represent shape
 
 
@@ -172,7 +172,7 @@ class Piece():
         self.col = column
         self.row = row
         self.shape = shape
-        self.color = shape_colors[shapes.index(shape)]
+        self.color = tetromino_colors[tetrominos.index(shape)]
         self.rotation = 0  # number from 0-3
 
 
@@ -185,15 +185,15 @@ def create_grid(locked_positions=None):
     return grid
 
 
-def convert_shape_format(shape):
+def convert_tetromino_format(tetromino):
     positions = []
-    shape_format = shape.shape[shape.rotation % len(shape.shape)]
+    shape_format = tetromino.shape[tetromino.rotation % len(tetromino.shape)]
 
     for r, line in enumerate(shape_format):
         row = list(line)
         for c, column in enumerate(row):
             if column == '0':
-                positions.append((shape.col + c, shape.row + r))
+                positions.append((tetromino.col + c, tetromino.row + r))
 
     for r, pos in enumerate(positions):
         positions[r] = (pos[0] - 2, pos[1] - 4)
@@ -201,10 +201,10 @@ def convert_shape_format(shape):
     return positions
 
 
-def valid_space(shape, grid):
+def valid_space(tetromino, grid):
     accepted_positions = [[(j, i) for j in range(GRID_WIDTH) if grid[i][j] == (0, 0, 0)] for i in range(GRID_HEIGHT)]
     accepted_positions = [j for sub in accepted_positions for j in sub]
-    formatted = convert_shape_format(shape)
+    formatted = convert_tetromino_format(tetromino)
 
     for pos in formatted:
         if pos not in accepted_positions:
@@ -214,11 +214,11 @@ def valid_space(shape, grid):
     return True
 
 
-def check_ground_hit(shape, grid):
+def check_ground_hit(tetromino, grid):
     accepted_positions = [[(j, i) for j in range(
         GRID_WIDTH) if grid[i][j] == (0, 0, 0)] for i in range(GRID_HEIGHT)]
     accepted_positions = [j for sub in accepted_positions for j in sub]
-    formatted = convert_shape_format(shape)
+    formatted = convert_tetromino_format(tetromino)
 
     for pos in formatted:
         if pos not in accepted_positions:
@@ -235,8 +235,8 @@ def check_lost(positions):
     return False
 
 
-def get_shape():
-    return Piece(5, 0, random.choice(shapes))
+def get_tetromino():
+    return Piece(5, 0, random.choice(tetrominos))
 
 
 def draw_text_middle(text, size, color, surface):
@@ -260,7 +260,6 @@ def draw_grid(surface, row, col):
 
 # need to see if row is clear then shift every other row above down one
 def clear_rows(grid, locked):
-
     inc = 0
     for r in range(len(grid) - 1, -1, -1):
         row = grid[r]
@@ -277,20 +276,20 @@ def clear_rows(grid, locked):
                 locked[new_key] = locked.pop(key)
 
 
-def draw_next_shape(shape, surface):
+def draw_next_tetromino(tetromino, surface):
     font = pygame.font.SysFont('comicsans', BLOCK_SIZE)
     label = font.render('Next Shape', 1, WHITE)
 
     start_x = TOP_LEFT_X + PLAY_WIDTH + 50
     start_y = TOP_LEFT_Y + PLAY_HEIGHT // 2 - 100
-    shape_format = shape.shape[shape.rotation % len(shape.shape)]
+    shape_format = tetromino.shape[tetromino.rotation % len(tetromino.shape)]
 
     for r, line in enumerate(shape_format):
         row = list(line)
         for c, column in enumerate(row):
             if column == '0':
-                pygame.draw.rect(surface, shape.color, (start_x + c * BLOCK_SIZE, start_y + r * BLOCK_SIZE, BLOCK_SIZE, BLOCK_SIZE), 0)
-    surface.blit(label, (start_x + (SHAPE_SIZE * BLOCK_SIZE - label.get_width()) // 2, start_y - BLOCK_SIZE))
+                pygame.draw.rect(surface, tetromino.color, (start_x + c * BLOCK_SIZE, start_y + r * BLOCK_SIZE, BLOCK_SIZE, BLOCK_SIZE), 0)
+    surface.blit(label, (start_x + (TETROMINO_SIZE * BLOCK_SIZE - label.get_width()) // 2, start_y - BLOCK_SIZE))
 
 
 def draw_window(surface, grid):
@@ -311,6 +310,15 @@ def draw_window(surface, grid):
     # pygame.display.update()
 
 
+def keyboard_input_received():
+    for event in pygame.event.get():
+        if event.type == pygame.KEYDOWN:
+            return True
+        elif event.type == pygame.QUIT:
+            pygame.quit()
+    return False
+
+
 def get_keyboard_input(current_piece, grid):
     prev_piece = deepcopy(current_piece)
 
@@ -319,11 +327,22 @@ def get_keyboard_input(current_piece, grid):
             pygame.display.quit()
             pygame.quit()
         if event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_UP:     # rotate shape
+            if event.key == pygame.K_ESCAPE or event.key == pygame.K_F1:
+                while True:
+                    draw_text_middle("Game Paused", 40, WHITE, win)
+                    pygame.display.update()
+                    if keyboard_input_received():
+                        break
+            elif event.key == pygame.K_LSHIFT or event.key == pygame.K_c:
+                # todo : Implement Hold System
+                pass
+            elif event.key == pygame.K_UP or event.key == pygame.K_x:
                 current_piece.rotation = current_piece.rotation + 1 % len(current_piece.shape)
-            elif event.key == pygame.K_DOWN:   # move shape one block down
+            elif event.key == pygame.K_LCTRL or event.key == pygame.K_z:
+                current_piece.rotation = current_piece.rotation - 1 % len(current_piece.shape)
+            elif event.key == pygame.K_DOWN:
                 current_piece.row += 1
-            elif event.key == pygame.K_SPACE:  # Hard Drop(move shape to bottom)
+            elif event.key == pygame.K_SPACE: # Hard Drop(move Tetrimino to the bottom)
                 while valid_space(current_piece, grid):
                     current_piece.row += 1
                 current_piece.row -= 1
@@ -351,8 +370,8 @@ def main():
     locked_positions = {}  # (x,y):(255,0,0)
     grid             = create_grid(locked_positions)
     lock_down        = False
-    current_piece    = get_shape()
-    next_piece       = get_shape()
+    current_piece    = get_tetromino()
+    next_piece       = get_tetromino()
     clock            = pygame.time.Clock()
     fall_time        = 0
 
@@ -374,7 +393,7 @@ def main():
                 lock_down = True
 
         current_piece = get_keyboard_input(current_piece, grid)
-        shape_pos = convert_shape_format(current_piece)
+        shape_pos = convert_tetromino_format(current_piece)
 
         # Add piece to the grid for drawing
         for x, y in shape_pos:
@@ -386,26 +405,20 @@ def main():
             for pos in shape_pos:
                 locked_positions[pos] = current_piece.color
             current_piece = next_piece
-            next_piece = get_shape()
+            next_piece = get_tetromino()
             lock_down = False
             clear_rows(grid, locked_positions)
             if check_lost(locked_positions):
                 break
 
         draw_window(win, grid)
-        draw_next_shape(next_piece, win)
+        draw_next_tetromino(next_piece, win)
         pygame.display.update()
 
     while True:
         draw_text_middle("You Lost", 40, WHITE, win)
         pygame.display.update()
-        key_pushed = False
-        for event in pygame.event.get():
-            if event.type == pygame.KEYDOWN:
-                key_pushed = True
-            elif event.type == pygame.QUIT:
-                pygame.quit()
-        if key_pushed:
+        if keyboard_input_received():
             break
 
 
