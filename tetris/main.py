@@ -12,22 +12,26 @@ import pygame
 # https://tetris.wiki/Tetris_Guideline
 
 # GAME SETTING
-FALL_SPEED      = 250
-REPEAT_INTERVAL = 50
+FALL_SPEED       = 250
+REPEAT_INTERVAL  = 50
+
+#
+TOTAL_TETROMINOS = 7
+NEXT_QUEUE_SIZE  = 3
 
 # DISPLAY
-WINDOW_WIDTH    = 800
-WINDOW_HEIGHT   = 700
-GRID_WIDTH      = 10
-GRID_HEIGHT     = 20
-GRID_BUFFER     = 2
-TETROMINO_SIZE  = 4
-BLOCK_SIZE      = 30
-PLAY_WIDTH      = GRID_WIDTH  * BLOCK_SIZE
-PLAY_HEIGHT     = GRID_HEIGHT * BLOCK_SIZE
+WINDOW_WIDTH     = 800
+WINDOW_HEIGHT    = 700
+GRID_WIDTH       = 10
+GRID_HEIGHT      = 20
+GRID_BUFFER      = 2
+TETROMINO_SIZE   = 4
+BLOCK_SIZE       = 30
+PLAY_WIDTH       = GRID_WIDTH  * BLOCK_SIZE
+PLAY_HEIGHT      = GRID_HEIGHT * BLOCK_SIZE
 
-TOP_LEFT_X      = (WINDOW_WIDTH - PLAY_WIDTH) // 2
-TOP_LEFT_Y      = WINDOW_HEIGHT - PLAY_HEIGHT
+TOP_LEFT_X       = (WINDOW_WIDTH - PLAY_WIDTH) // 2
+TOP_LEFT_Y       = WINDOW_HEIGHT - PLAY_HEIGHT
 
 # OPTIONS
 
@@ -176,6 +180,40 @@ class Piece():
         self.rotation = 0  # number from 0-3
 
 
+class RandomGenerator:
+    seven_bags = [deepcopy(tetrominos) for x in range(2)]
+    for bag in seven_bags:
+        random.shuffle(bag)
+    cur_bag = 0
+    cur_idx = 0
+
+    @staticmethod
+    def get_tetromino():
+        RG = RandomGenerator
+        ret = RG.seven_bags[RG.cur_bag][RG.cur_idx]
+        RG.cur_idx += 1
+        if (RG.cur_idx >= TOTAL_TETROMINOS):
+            random.shuffle(RG.seven_bags[RG.cur_bag])
+            RG.cur_idx = 0
+            RG.cur_bag = (RG.cur_bag + 1) % 2
+        return Piece(5, 0, ret)
+
+    @staticmethod
+    def get_next_piece_list():
+        RG = RandomGenerator
+        ret = []
+        idx = RG.cur_idx + 1
+        bag = RG.cur_bag
+        for i in range(NEXT_QUEUE_SIZE):
+            if idx >= TOTAL_TETROMINOS:
+                idx = 0
+                bag = (bag + 1) % 2
+            ret.append(RG.seven_bags[bag][idx])
+            idx = idx + 1
+        ret = [Piece(5, 0, item) for item in ret]
+        return ret
+
+
 def create_grid(locked_positions=None):
     grid = [[(0, 0, 0) for x in range(GRID_WIDTH)] for x in range(GRID_HEIGHT)]
     for r, _ in enumerate(grid):
@@ -235,10 +273,6 @@ def check_lost(positions):
     return False
 
 
-def get_tetromino():
-    return Piece(5, 0, random.choice(tetrominos))
-
-
 def draw_text_middle(text, size, color, surface):
     font = pygame.font.SysFont('comicsans', size, bold=True)
     label = font.render(text, 1, color)
@@ -258,7 +292,6 @@ def draw_grid(surface, row, col):
                              (start_x + j * BLOCK_SIZE, start_y), (start_x + j * BLOCK_SIZE, start_y + PLAY_HEIGHT))  # vertical lines
 
 
-# need to see if row is clear then shift every other row above down one
 def clear_rows(grid, locked):
     inc = 0
     for r in range(len(grid) - 1, -1, -1):
@@ -319,8 +352,8 @@ def keyboard_input_received():
     return False
 
 
-def get_keyboard_input(current_piece, grid):
-    prev_piece = deepcopy(current_piece)
+def get_keyboard_input(curr_tetromino, grid):
+    prev_tetromino = deepcopy(curr_tetromino)
 
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
@@ -337,15 +370,15 @@ def get_keyboard_input(current_piece, grid):
                 # todo : Implement Hold System
                 pass
             elif event.key == pygame.K_UP or event.key == pygame.K_x:
-                current_piece.rotation = current_piece.rotation + 1 % len(current_piece.shape)
+                curr_tetromino.rotation = curr_tetromino.rotation + 1 % len(curr_tetromino.shape)
             elif event.key == pygame.K_LCTRL or event.key == pygame.K_z:
-                current_piece.rotation = current_piece.rotation - 1 % len(current_piece.shape)
+                curr_tetromino.rotation = curr_tetromino.rotation - 1 % len(curr_tetromino.shape)
             elif event.key == pygame.K_DOWN:
-                current_piece.row += 1
+                curr_tetromino.row += 1
             elif event.key == pygame.K_SPACE: # Hard Drop(move Tetrimino to the bottom)
-                while valid_space(current_piece, grid):
-                    current_piece.row += 1
-                current_piece.row -= 1
+                while valid_space(curr_tetromino, grid):
+                    curr_tetromino.row += 1
+                curr_tetromino.row -= 1
 
     # Auto Repeat only works for left / right arrow key
     pygame.event.pump()
@@ -353,25 +386,25 @@ def get_keyboard_input(current_piece, grid):
     if key_states[pygame.K_LEFT] and (not get_keyboard_input.repeat_enabled or get_keyboard_input.interval >= REPEAT_INTERVAL):
         get_keyboard_input.repeat_enabled = True
         get_keyboard_input.interval = 0
-        current_piece.col -= 1
+        curr_tetromino.col -= 1
     if key_states[pygame.K_RIGHT] and (not get_keyboard_input.repeat_enabled or get_keyboard_input.interval >= REPEAT_INTERVAL):
         get_keyboard_input.repeat_enabled = True
         get_keyboard_input.interval = 0
-        current_piece.col += 1
+        curr_tetromino.col += 1
     if not key_states[pygame.K_LEFT] and not key_states[pygame.K_RIGHT]:
         get_keyboard_input.repeat_enabled = False
 
-    if not valid_space(current_piece, grid):
-        return prev_piece
-    return current_piece
+    if not valid_space(curr_tetromino, grid):
+        return prev_tetromino
+    return curr_tetromino
 
 
 def main():
     locked_positions = {}  # (x,y):(255,0,0)
     grid             = create_grid(locked_positions)
     lock_down        = False
-    current_piece    = get_tetromino()
-    next_piece       = get_tetromino()
+    curr_tetromino   = RandomGenerator.get_tetromino()
+    next_tetrominos  = RandomGenerator.get_next_piece_list()
     clock            = pygame.time.Clock()
     fall_time        = 0
 
@@ -387,32 +420,32 @@ def main():
         # PIECE FALLING CODE
         if fall_time >= FALL_SPEED:
             fall_time = 0
-            current_piece.row += 1
-            if check_ground_hit(current_piece, grid) and current_piece.row > 0:
-                current_piece.row -= 1
+            curr_tetromino.row += 1
+            if check_ground_hit(curr_tetromino, grid) and curr_tetromino.row > 0:
+                curr_tetromino.row -= 1
                 lock_down = True
 
-        current_piece = get_keyboard_input(current_piece, grid)
-        shape_pos = convert_tetromino_format(current_piece)
+        curr_tetromino = get_keyboard_input(curr_tetromino, grid)
+        tetromino_pos = convert_tetromino_format(curr_tetromino)
 
         # Add piece to the grid for drawing
-        for x, y in shape_pos:
+        for x, y in tetromino_pos:
             if -1 < y < GRID_HEIGHT and -1 < x < GRID_WIDTH:
-                grid[y][x] = current_piece.color
+                grid[y][x] = curr_tetromino.color
 
         # Piece drops onto a surface
         if lock_down:
-            for pos in shape_pos:
-                locked_positions[pos] = current_piece.color
-            current_piece = next_piece
-            next_piece = get_tetromino()
+            for pos in tetromino_pos:
+                locked_positions[pos] = curr_tetromino.color
+            curr_tetromino = RandomGenerator.get_tetromino()
+            next_tetrominos = RandomGenerator.get_next_piece_list()
             lock_down = False
             clear_rows(grid, locked_positions)
             if check_lost(locked_positions):
                 break
 
         draw_window(win, grid)
-        draw_next_tetromino(next_piece, win)
+        draw_next_tetromino(next_tetrominos[0], win)
         pygame.display.update()
 
     while True:
