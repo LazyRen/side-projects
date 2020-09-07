@@ -13,7 +13,7 @@ import pygame
 
 # GAME SETTING
 FALL_SPEED       = 250
-REPEAT_INTERVAL  = 50
+REPEAT_INTERVAL  = 75
 
 #
 TOTAL_TETROMINOS = 7
@@ -25,7 +25,7 @@ WINDOW_HEIGHT    = 700
 GRID_WIDTH       = 10
 GRID_HEIGHT      = 20
 GRID_BUFFER      = 2
-TETROMINO_SIZE   = 4
+TETROMINO_SIZE   = 5
 BLOCK_SIZE       = 30
 PLAY_WIDTH       = GRID_WIDTH  * BLOCK_SIZE
 PLAY_HEIGHT      = GRID_HEIGHT * BLOCK_SIZE
@@ -50,23 +50,18 @@ WHITE   = (255, 255, 255)
 YELLOW  = (255, 255, 0  )
 
 # TETRIMINO COLORS
-COLOR_I = (0,   159, 218) # light blue
-COLOR_J = (0,   101, 189) # dark blue
-COLOR_L = (255, 121, 0  ) # orange
-COLOR_O = (254, 203, 0  ) # yellow
-COLOR_S = (105, 190, 40 ) # green
-COLOR_Z = (237, 41,  57 ) # red
-COLOR_T = (149, 45,  152) # magenta
+COLOR_I = (0,   159, 218)  # Light Blue
+COLOR_J = (0,   101, 189)  # Dark Blue
+COLOR_L = (255, 121, 0  )  # Orange
+COLOR_O = (254, 203, 0  )  # Yellow
+COLOR_S = (105, 190, 40 )  # Green
+COLOR_Z = (237, 41,  57 )  # Red
+COLOR_T = (149, 45,  152)  # Magenta
 
 # TETRIMINO FORMATS
 # https://harddrop.com/wiki/File:SRS-true-rotations.png
 # SHAPE_I, SHAPE_J, SHAPE_L, SHAPE_O, SHAPE_S, SHAPE_Z, SHAPE_T
-SHAPE_I = [['..0..',
-            '..0..',
-            '..0..',
-            '..0..',
-            '.....'],
-            ['.....',
+SHAPE_I = [['.....',
             '..0..',
             '..0..',
             '..0..',
@@ -192,7 +187,7 @@ class RandomGenerator:
         RG = RandomGenerator
         ret = RG.seven_bags[RG.cur_bag][RG.cur_idx]
         RG.cur_idx += 1
-        if (RG.cur_idx >= TOTAL_TETROMINOS):
+        if RG.cur_idx >= TOTAL_TETROMINOS:
             random.shuffle(RG.seven_bags[RG.cur_bag])
             RG.cur_idx = 0
             RG.cur_bag = (RG.cur_bag + 1) % 2
@@ -202,9 +197,9 @@ class RandomGenerator:
     def get_next_piece_list():
         RG = RandomGenerator
         ret = []
-        idx = RG.cur_idx + 1
+        idx = RG.cur_idx
         bag = RG.cur_bag
-        for i in range(NEXT_QUEUE_SIZE):
+        for _ in range(NEXT_QUEUE_SIZE):
             if idx >= TOTAL_TETROMINOS:
                 idx = 0
                 bag = (bag + 1) % 2
@@ -235,7 +230,6 @@ def convert_tetromino_format(tetromino):
 
     for r, pos in enumerate(positions):
         positions[r] = (pos[0] - 2, pos[1] - 4)
-
     return positions
 
 
@@ -248,7 +242,6 @@ def valid_space(tetromino, grid):
         if pos not in accepted_positions:
             if pos[0] < 0 or pos[0] >= GRID_WIDTH or pos[1] > -1:
                 return False
-
     return True
 
 
@@ -262,7 +255,6 @@ def check_ground_hit(tetromino, grid):
         if pos not in accepted_positions:
             if pos[1] > -1:
                 return True
-
     return False
 
 
@@ -309,20 +301,26 @@ def clear_rows(grid, locked):
                 locked[new_key] = locked.pop(key)
 
 
-def draw_next_tetromino(tetromino, surface):
+def draw_next_tetromino(next_tetrominos, surface):
+    start_x = TOP_LEFT_X + PLAY_WIDTH + 50
+    start_y = TOP_LEFT_Y
+
     font = pygame.font.SysFont('comicsans', BLOCK_SIZE)
     label = font.render('Next Shape', 1, WHITE)
+    surface.blit(label, (start_x + (TETROMINO_SIZE * BLOCK_SIZE - label.get_width()) // 2, start_y))
 
-    start_x = TOP_LEFT_X + PLAY_WIDTH + 50
-    start_y = TOP_LEFT_Y + PLAY_HEIGHT // 2 - 100
-    shape_format = tetromino.shape[tetromino.rotation % len(tetromino.shape)]
+    start_y += BLOCK_SIZE
 
-    for r, line in enumerate(shape_format):
-        row = list(line)
-        for c, column in enumerate(row):
-            if column == '0':
-                pygame.draw.rect(surface, tetromino.color, (start_x + c * BLOCK_SIZE, start_y + r * BLOCK_SIZE, BLOCK_SIZE, BLOCK_SIZE), 0)
-    surface.blit(label, (start_x + (TETROMINO_SIZE * BLOCK_SIZE - label.get_width()) // 2, start_y - BLOCK_SIZE))
+    for idx, tetromino in enumerate(next_tetrominos):
+        shape_format = tetromino.shape[tetromino.rotation % len(tetromino.shape)]
+        # pygame.draw.rect(surface, WHITE, (start_x, start_y + idx * BLOCK_SIZE * TETROMINO_SIZE,
+        #                                 BLOCK_SIZE * TETROMINO_SIZE, BLOCK_SIZE * TETROMINO_SIZE), 5)
+        for r, line in enumerate(shape_format):
+            row = list(line)
+            for c, column in enumerate(row):
+                if column == '0':
+                    pygame.draw.rect(surface, tetromino.color, (start_x + c * BLOCK_SIZE, start_y + r * BLOCK_SIZE + idx * BLOCK_SIZE * TETROMINO_SIZE,
+                                                                BLOCK_SIZE, BLOCK_SIZE), 0)
 
 
 def draw_window(surface, grid):
@@ -340,14 +338,13 @@ def draw_window(surface, grid):
     # draw grid and border
     draw_grid(surface, GRID_HEIGHT, GRID_WIDTH)
     pygame.draw.rect(surface, RED, (TOP_LEFT_X, TOP_LEFT_Y, PLAY_WIDTH, PLAY_HEIGHT), 5)
-    # pygame.display.update()
 
 
 def keyboard_input_received():
     for event in pygame.event.get():
         if event.type == pygame.KEYDOWN:
             return True
-        elif event.type == pygame.QUIT:
+        if event.type == pygame.QUIT:
             pygame.quit()
     return False
 
@@ -375,7 +372,7 @@ def get_keyboard_input(curr_tetromino, grid):
                 curr_tetromino.rotation = curr_tetromino.rotation - 1 % len(curr_tetromino.shape)
             elif event.key == pygame.K_DOWN:
                 curr_tetromino.row += 1
-            elif event.key == pygame.K_SPACE: # Hard Drop(move Tetrimino to the bottom)
+            elif event.key == pygame.K_SPACE:  # Hard Drop(move Tetrimino to the bottom)
                 while valid_space(curr_tetromino, grid):
                     curr_tetromino.row += 1
                 curr_tetromino.row -= 1
@@ -445,7 +442,7 @@ def main():
                 break
 
         draw_window(win, grid)
-        draw_next_tetromino(next_tetrominos[0], win)
+        draw_next_tetromino(next_tetrominos, win)
         pygame.display.update()
 
     while True:
